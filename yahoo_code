@@ -1,1 +1,181 @@
 
+import yahoo_fin.stock_info as si
+import matplotlib.pyplot as plt
+import pandas as pd
+
+def display_options():
+    '''Initial options are displayed'''
+    print("Welcome to Yahoo Finance Data Viewer!")
+    print(f"\nThis program allows you look for daily/historical financial information")
+    print(f"\nPlease read the options:")
+
+
+def get_user_input():
+    '''This is the main function in the code, it displays options to look information.
+    It insteracts with the user displaying different options to obtain financial information.
+    Returns
+    -------
+    Tuple: ticker and data type for fetching financial information.
+    '''
+    display_options()
+    user_choice = input(f'\nPlease enter C if you are looking for a company or I if you are looking for an Index: ').upper()
+
+    if user_choice == 'C':
+        print(f"\nThe available tickers for companies are: BA, BAB, BABA, BAAPX, BAAAAX, BAAX39, AAPL, AMZN, GOOG, TSLA, TWRT, VZ")
+
+        company_ticker = input(f"\nPlease enter the ticker: ").upper()
+
+        if company_ticker in ['BA', 'BAB', 'BABA', 'BAAPX', 'BAAAAX', 'BAAX39', 'AAPL', 'AMZN', 'GOOG', 'TSLA', 'TWRT', 'VZ']:
+            ticker_option = input(f'\nChoose an option balance sheet or stock price: ').lower()
+            if ticker_option == 'stock price':
+                data_type = input(f'\nSelect data type historical or single data: ').lower()
+                if data_type == 'historical':
+                    date_range = input(f'\nPlease enter the range of dates desired (YYYY-MM-DD to YYYY-MM-DD): ')
+                    return company_ticker, ticker_option + ' historical', date_range
+                elif data_type == 'single data':
+                    return company_ticker, 'stock price'
+                else:
+                    print("Invalid option. Try again.")
+                    return get_user_input()
+            elif ticker_option == 'balance sheet':
+                return company_ticker, 'balance sheet'
+            else:
+                print("Invalid option. Try again.")
+                return get_user_input()
+        else:
+            print("Invalid option. Try again.")
+            return get_user_input()
+
+    elif user_choice == 'I':
+        print("The available indexes are: ^GSPC (S&P500), ^DJI (DowJones), ^IXIC (NASDAQ)")
+
+        index_ticker = input(f"\nPlease enter the ticker: ").upper()
+
+        if index_ticker in ['^GSPC', '^DJI', '^IXIC']:
+            index_option = input('Choose an option price or volume: ').lower()
+            if index_option == 'price':
+                data_type = input(f'\nSelect data type historical or single data: ').lower()
+                if data_type == 'historical':
+                    date_range = input(f'\nPlease enter the range of dates desired (YYYY-MM-DD to YYYY-MM-DD): ')
+                    return index_ticker, 'stock price' + ' historical', date_range
+                elif data_type == 'single data':
+                    return index_ticker, 'stock price'
+            if index_option == 'volume':
+                return index_ticker, 'volume'
+        else:
+            print("Invalid option. Try again.")
+            return get_user_input()
+    else:
+        print("Invalid input. Please select C or I.")
+        return get_user_input()
+
+def get_balance_sheet(ticker):
+    '''It obtains information of the balance sheet of a company.
+    Parameters
+    ----------
+    str: The ticker of the company.
+
+    Returns
+    -------
+    DataFrame: The balance sheet for the company desired.
+    '''
+    balance_sheet = si.get_balance_sheet(ticker)
+    return balance_sheet
+
+def get_volume(ticker):
+    '''It obtains information of the the latest volume available of a company.
+    Parameters
+    ----------
+    str: The stock ticker.
+
+    Returns:
+    float: The latest volume available.
+    '''
+    historical_data = si.get_data(ticker)
+    if historical_data is not None:
+        latest_volume = historical_data['volume'].iloc[-1]
+        return latest_volume
+    else:
+        return None
+
+def fetch_data(ticker, data_type, date_range=None):
+    '''It obtains information regarding price, balance sheet, volume, etc.
+
+    Parameters
+    ----------
+    str: The stock or index ticker.
+    data_type: string with the stock price, balance sheet, volume or historical data.
+    date_range: string with the date range. The format is 'YYYY-MM-DD to YYYY-MM-DD'.
+
+    Returns
+    ------
+    Historical data or single data.
+    '''
+    if data_type == 'stock price':
+        return si.get_live_price(ticker)
+    elif data_type == 'balance sheet':
+        return get_balance_sheet(ticker)
+    elif data_type == 'volume':
+        return get_volume(ticker)
+    elif data_type == 'stock price historical':
+        start_date, end_date = date_range.split(' to ')
+        historical_data = si.get_data(ticker, start_date=start_date, end_date=end_date)
+        return historical_data
+    elif data_type == 'balance sheet historical':
+        return get_balance_sheet(ticker)
+    else:
+        return None
+
+
+def visualize_data(data):
+    '''Visualize historical data'''
+    if isinstance(data, pd.DataFrame):
+        if 'open' in data.columns and 'close' in data.columns:
+            plt.figure(figsize=(10, 6))
+            plt.plot(data.index, data['open'], label='Open Price', color='blue')
+            plt.plot(data.index, data['close'], label='Close Price', color='red')
+            plt.xlabel('Date')
+            plt.ylabel('Value')
+            plt.title('Historical Data')
+            plt.legend()
+            plt.show()
+        else:
+            print("Data does not contain necessary columns for visualization.")
+    else:
+        print("Invalid data type for visualization.")
+
+def download_csv(data):
+    '''Allows to the user download historical data in a csv.'''
+    if isinstance(data, pd.DataFrame):
+        file_name = input("Enter the name for your file: ")
+        data.to_csv(file_name, index=True)
+        print(f"{file_name} has been saved.")
+    else:
+        print("Invalid data type for exporting to CSV.")
+
+def main():
+    '''Display the functionalities and options of the viewer.'''
+    selected_values = get_user_input()
+    if selected_values:
+        selected_ticker, selected_option = selected_values[0], selected_values[1]
+        fetched_data = fetch_data(*selected_values)
+        if selected_option == 'stock price':
+            print(f"The current price of {selected_ticker} is: {fetched_data}")
+        if selected_option == 'volume':
+            print(f"The volume of {selected_ticker} is: {fetched_data}")
+        elif selected_option == 'balance sheet':
+            print(f"The balance sheet of {selected_ticker} is: {fetched_data}")
+        elif selected_option == 'stock price historical':
+            print(f"Historical price data of {selected_ticker} for the selected date range:")
+            print(fetched_data)
+        visualize_data(fetched_data)
+        download_choice = input("Would you like to download your search? (Y or N): ").upper()
+        if download_choice == 'Y':
+            download_csv(fetched_data)
+        else:
+            print("Thanks for using Yahoo Finance Data Viewer!")
+
+
+if __name__ == "__main__":
+    main()
+
